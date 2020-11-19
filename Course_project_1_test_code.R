@@ -20,9 +20,9 @@ median(agg$daily_steps, na.rm = TRUE)
 
 
 agg2 <- aggregate(x = data$steps,                # Specify data column
-                 by = list(data$interval),           # Specify group indicator
+                 by = list(data$interval),       # Specify group indicator
                  FUN = mean,                     # Specify function (i.e. sum)
-                 na.rm = TRUE)                     # remove NAs
+                 na.rm = TRUE)                   # remove NAs
 names(agg2) <- c('interval','average_steps')
 
 library(ggplot2)
@@ -80,4 +80,41 @@ length(data$day)
 # Taking advantage of the fact that Saturday and Sunday 
 # are the only days starting with S:
 data$Weekend <- grepl("S.+",weekdays(as.Date(data$day,format="%Y-%m-%d")))
+#agg$Weekend <- grepl("S.+",weekdays(as.Date(agg$day,format="%Y-%m-%d")))
 
+#agg[ agg$Weekend == TRUE, 3] <- "weekend"
+#agg[ agg$Weekend == FALSE, 3] <- "weekday"
+
+temp_data <- data[ data$Weekend==FALSE,]
+wkday_agg2 <- aggregate(x = temp_data$steps,                # Specify data column
+                  by = list(temp_data$interval),       # Specify group indicator
+                  FUN = mean,                     # Specify function (i.e. sum)
+                  na.rm = TRUE)                   # remove NAs
+names(wkday_agg2) <- c('interval','average_steps')
+
+temp_data <- data[ data$Weekend==TRUE,]
+wkend_agg2 <- aggregate(x = temp_data$steps,                # Specify data column
+                        by = list(temp_data$interval),       # Specify group indicator
+                        FUN = mean,                     # Specify function (i.e. sum)
+                        na.rm = TRUE)                   # remove NAs
+names(wkend_agg2) <- c('interval','average_steps')
+
+
+
+par(mfcol = c(2, 1))
+
+# TOP
+plot(wkend_agg2$interval, wkend_agg2$average_steps, 
+     type = "l",
+     col = "red",
+     xlab = "Interval during the day", 
+     ylab = "Average step count",
+     main = "Weekend") 
+
+# BOTTOM
+plot(wkday_agg2$interval, wkday_agg2$average_steps, 
+     type = "l",
+     col = "blue",
+     xlab = "Interval during the day", 
+     ylab = "Average step count", 
+     main = "Weekday") 
