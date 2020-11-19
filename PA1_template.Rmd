@@ -1,25 +1,174 @@
 ---
-title: "Reproducible Research: Peer Assessment 1"
-output: 
-  html_document:
-    keep_md: true
+title: "Course Project 1"
+author: "cfrankh"
+date: "19 November 2020"
+output: html_document
 ---
 
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
 
-## Loading and preprocessing the data
-
-
-
-## What is mean total number of steps taken per day?
-
+## Reproducible Research: Course Project 1
 
 
-## What is the average daily activity pattern?
+### (1) Loading Preprocessing the Data
+Load the data and change the column headings to eliminate the column heading "date" which will get confused with the R function date in aggregation.
+
+```{r}
+data <- read.csv('activity.csv')
+names(data) <- c('steps','day','interval')
+```
 
 
+### (2) What is mean total number of steps taken per day?
 
-## Imputing missing values
+This is done ignoring the missing values in the data set.  
+
+First, calculate the average number of steps in a day.
+```{r}
+agg <- aggregate(x = data$steps,                # Specify data column
+                by = list(data$day),           # Specify group indicator
+                FUN = sum,                     # Specify function (i.e. sum)
+                na.rm = TRUE)               # remove NAs
+names(agg) <- c('day','daily_steps')
+```
+
+Then, create a histogram of the number of steps in a day.
+
+```{r}
+hist(agg$daily_steps,xlab = "Daily Steps",
+     col = "yellow",border = "blue", main="Histogram of Daily Steps Data")
+```
+
+Finally, in this section, calculate and display the mean and median number of steps in a day.
+
+```{r}
+mean(agg$daily_steps, na.rm = TRUE)
+median(agg$daily_steps, na.rm = TRUE)
+```
 
 
+### (3) What is the average daily activity pattern?
 
-## Are there differences in activity patterns between weekdays and weekends?
+First, calculate the aggregate average number of steps by interval.
+
+```{r}
+agg2 <- aggregate(x = data$steps,                # Specify data column
+                 by = list(data$interval),       # Specify group indicator
+                 FUN = mean,                     # Specify function (i.e. sum)
+                 na.rm = TRUE)                   # remove NAs
+names(agg2) <- c('interval','average_steps')
+```
+
+Now, make a time series plot of the 5-minute interval (x-axis) and the average number of steps taken, averaged across all days (y-axis).
+
+```{r}
+library(ggplot2)
+ggplot(data=agg2, aes(x=interval, y=average_steps)) +
+    geom_line(col='blue') +
+    labs(title = "Average Steps by Time Interval in the Day"
+         , x = "Interval", y = "Average Steps in Period")
+```
+
+And, calculate which 5-minute interval, on average across all the days in the dataset, contains the maximum number of steps.
+
+```{r}
+agg2$interval[ which.max(agg2$average_steps) ]
+```
+
+
+### (4) Imputing missing values
+
+First, Calculate and show the total number of missing values in the dataset (i.e. the total number of rows with NAs)
+
+```{r}
+col_count_NA <- colSums(is.na(data))
+total_count_NA <- sum(col_count_NA)
+total_count_NA
+```
+
+Create a copy of the data and fill in the missing values using the mean for that 5-minute interval from the data set where missig values have been ignored.
+
+```{r}
+library(data.table)
+adj_data <- copy(data)
+
+for (i in 1:dim(adj_data)[1]) {
+    if(is.na(adj_data[i,1])) {
+        adj_data[i,1] <- agg2[agg2$interval==adj_data[i,3],2]
+    }
+}
+```
+
+Make a histogram of the total number of steps taken each day with the missing values filled in. First aggregating this data in the same manner as for the previous data.
+
+```{r}
+adj_agg <- aggregate(x = adj_data$steps,        # Specify data column
+                    by = list(data$day),        # Specify group indicator
+                    FUN = sum,                  # Specify function (i.e. sum)
+                    na.rm = TRUE)               # remove NAs
+names(adj_agg) <- c('day','daily_steps')
+
+hist(adj_agg$daily_steps,xlab = "Daily Steps",
+     col = "green",border = "red", main="Adjusted Histogram of Daily Steps Data")
+```
+
+Calculate and report the mean and median total number of steps taken per day.
+
+```{r}
+mean(adj_agg$daily_steps, na.rm = TRUE)
+median(adj_agg$daily_steps, na.rm = TRUE)
+```
+
+As you can see, the mean and median daily steps are both higher with the missing data filled in.  So the estimate of total daily steps would be higher if the missing data is imputed in the way done here.
+
+
+### (5) Are there differences in activity patterns between weekdays and weekends?
+Taking advantage of the fact that Saturday and Sunday are the only days of the week that start with "S", create a new factor variable in the dataset with two levels – “weekday” and “weekend” indicating whether a given date is a weekday or weekend day.
+
+```{r}
+data$Weekend <- grepl("S.+",weekdays(as.Date(data$day,format="%Y-%m-%d")))
+data[ data$Weekend == TRUE, 4] <- "weekend"
+data[ data$Weekend == FALSE, 4] <- "weekday"
+```
+
+Re-aggregate the data by interval, but htis time for weekdays and weekends separately. In this analysis the missing values are again excluded. The analysis could equally be done with the filled in values in the data set.
+
+```{r}
+temp_data <- data[ data$Weekend=="weekday",]
+wkday_agg2 <- aggregate(x = temp_data$steps,
+                        by = list(temp_data$interval),
+                        FUN = mean,
+                        na.rm = TRUE)
+names(wkday_agg2) <- c('interval','average_steps')
+
+temp_data <- data[ data$Weekend=="weekend",]
+wkend_agg2 <- aggregate(x = temp_data$steps,
+                        by = list(temp_data$interval),
+                        FUN = mean,
+                        na.rm = TRUE)
+names(wkend_agg2) <- c('interval','average_steps')
+```
+
+Finally, make a panel plot containing a time series plot of the 5-minute interval (x-axis) and the average number of steps taken, averaged across all weekday days or weekend days (y-axis). 
+
+```{r fig1, fig.height = 10, fig.width = 5}
+par(mfcol = c(2, 1))
+
+# TOP
+plot(wkend_agg2$interval, wkend_agg2$average_steps, 
+     type = "l",
+     col = "red",
+     xlab = "Interval during the day", 
+     ylab = "Average step count",
+     main = "Weekend") 
+
+# BOTTOM
+plot(wkday_agg2$interval, wkday_agg2$average_steps, 
+     type = "l",
+     col = "blue",
+     xlab = "Interval during the day", 
+     ylab = "Average step count", 
+     main = "Weekday") 
+```
